@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/img_nec_app_icon_new_1783120982456"
+        android:drawable="@drawable/img_nec_logo_new"
         android:gravity="center" />
 </layer-list>

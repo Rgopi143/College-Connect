@@ -193,7 +193,7 @@ fun DashboardScreen(
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Image(
-                        painter = painterResource(id = R.drawable.img_nec_cover_banner_1783110225912),
+                        painter = painterResource(id = R.drawable.img_nec_logo_new),
                         contentDescription = "NEC Narasaraopeta Engineering College Cover Banner",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

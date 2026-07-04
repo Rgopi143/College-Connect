@@ -99,7 +99,7 @@ fun LoginScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.img_nec_logo_1781674832309),
+                            painter = painterResource(id = R.drawable.img_nec_logo_new),
                             contentDescription = "NEC College Logo",
                             modifier = Modifier
                                 .size(140.dp)
