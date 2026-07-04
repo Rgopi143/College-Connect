@@ -166,4 +166,29 @@ interface AppDao {
 
     @Delete
     suspend fun deleteEvent(event: CollegeEvent)
+
+    // --- BULK CLEAR CACHE QUERIES ---
+    @Query("DELETE FROM outpass_requests")
+    suspend fun clearOutpassRequests()
+
+    @Query("DELETE FROM certificate_requests")
+    suspend fun clearCertificateRequests()
+
+    @Query("DELETE FROM stationery_requests")
+    suspend fun clearStationeryRequests()
+
+    @Query("DELETE FROM print_requests")
+    suspend fun clearPrintRequests()
+
+    @Query("DELETE FROM canteen_bookings")
+    suspend fun clearCanteenBookings()
+
+    @Query("DELETE FROM notifications")
+    suspend fun clearNotifications()
+
+    @Query("DELETE FROM college_events")
+    suspend fun clearEvents()
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearChatMessages()
 }

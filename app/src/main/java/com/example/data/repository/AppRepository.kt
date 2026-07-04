@@ -4,6 +4,7 @@ import com.example.data.dao.AppDao
 import com.example.data.model.*
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
+import kotlin.coroutines.resumeWithException
 
 class AppRepository(private val appDao: AppDao) {
 
@@ -451,6 +452,210 @@ class AppRepository(private val appDao: AppDao) {
 
     suspend fun insertRawChatMessage(message: ChatMessage) {
         appDao.insertChatMessage(message)
+    }
+
+    // --- FIRESTORE PULL AND CLEAN CACHE WORKFLOW ---
+    
+    suspend fun <T> com.google.android.gms.tasks.Task<T>.awaitTask(): T = kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+        addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                continuation.resume(task.result, null)
+            } else {
+                continuation.resumeWithException(task.exception ?: RuntimeException("Task failed"))
+            }
+        }
+    }
+
+    private fun documentToEvent(doc: com.google.firebase.firestore.DocumentSnapshot): CollegeEvent {
+        return CollegeEvent(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            title = doc.getString("title") ?: "",
+            description = doc.getString("description") ?: "",
+            date = doc.getString("date") ?: "",
+            time = doc.getString("time") ?: "",
+            venue = doc.getString("venue") ?: "",
+            organizerRole = doc.getString("organizerRole") ?: "",
+            filterDepartment = doc.getString("filterDepartment") ?: "ALL",
+            isPaused = doc.getBoolean("isPaused") ?: false,
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToNotification(doc: com.google.firebase.firestore.DocumentSnapshot): CollegeNotification {
+        return CollegeNotification(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            targetStudentId = doc.getString("targetStudentId") ?: "",
+            title = doc.getString("title") ?: "",
+            content = doc.getString("content") ?: "",
+            category = doc.getString("category") ?: "General",
+            isRead = doc.getBoolean("isRead") ?: false,
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToOutpassRequest(doc: com.google.firebase.firestore.DocumentSnapshot): OutpassRequest {
+        return OutpassRequest(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            studentId = doc.getString("studentId") ?: "",
+            studentName = doc.getString("studentName") ?: "",
+            rollNumber = doc.getString("rollNumber") ?: "",
+            department = doc.getString("department") ?: "",
+            dateTime = doc.getString("dateTime") ?: "",
+            reason = doc.getString("reason") ?: "",
+            expectedReturnTime = doc.getString("expectedReturnTime") ?: "",
+            parentContact = doc.getString("parentContact") ?: "",
+            status = doc.getString("status") ?: "",
+            qrText = doc.getString("qrText") ?: "",
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToCertificateRequest(doc: com.google.firebase.firestore.DocumentSnapshot): CertificateRequest {
+        return CertificateRequest(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            studentId = doc.getString("studentId") ?: "",
+            studentName = doc.getString("studentName") ?: "",
+            rollNumber = doc.getString("rollNumber") ?: "",
+            department = doc.getString("department") ?: "",
+            certificateType = doc.getString("certificateType") ?: "",
+            details = doc.getString("details") ?: "",
+            status = doc.getString("status") ?: "",
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToCanteenBooking(doc: com.google.firebase.firestore.DocumentSnapshot): CanteenBooking {
+        return CanteenBooking(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            studentId = doc.getString("studentId") ?: "",
+            studentName = doc.getString("studentName") ?: "",
+            itemsJson = doc.getString("itemsJson") ?: "",
+            totalCost = doc.getDouble("totalCost") ?: 0.0,
+            status = doc.getString("status") ?: "",
+            qrToken = doc.getString("qrToken") ?: "",
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToStationeryRequest(doc: com.google.firebase.firestore.DocumentSnapshot): StationeryRequest {
+        return StationeryRequest(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            studentId = doc.getString("studentId") ?: "",
+            studentName = doc.getString("studentName") ?: "",
+            itemName = doc.getString("itemName") ?: "",
+            quantity = doc.getLong("quantity")?.toInt() ?: 0,
+            status = doc.getString("status") ?: "",
+            totalCost = doc.getDouble("totalCost") ?: 0.0,
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToPrintRequest(doc: com.google.firebase.firestore.DocumentSnapshot): PrintRequest {
+        return PrintRequest(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            studentId = doc.getString("studentId") ?: "",
+            studentName = doc.getString("studentName") ?: "",
+            fileName = doc.getString("fileName") ?: "",
+            pagesCount = doc.getLong("pagesCount")?.toInt() ?: 0,
+            printType = doc.getString("printType") ?: "",
+            copyType = doc.getString("copyType") ?: "",
+            bindingType = doc.getString("bindingType") ?: "",
+            totalCost = doc.getDouble("totalCost") ?: 0.0,
+            status = doc.getString("status") ?: "",
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    private fun documentToChatMessage(doc: com.google.firebase.firestore.DocumentSnapshot): ChatMessage {
+        return ChatMessage(
+            id = doc.getLong("id")?.toInt() ?: 0,
+            senderId = doc.getString("senderId") ?: "",
+            senderName = doc.getString("senderName") ?: "",
+            senderRole = doc.getString("senderRole") ?: "",
+            recipientRole = doc.getString("recipientRole") ?: "",
+            messageText = doc.getString("messageText") ?: "",
+            isSheetAttachment = doc.getBoolean("isSheetAttachment") ?: false,
+            attachmentData = doc.getString("attachmentData"),
+            timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis()
+        )
+    }
+
+    suspend fun pullFromFirestoreAndCleanCache(currentUserId: String): String {
+        val firestore = firestoreInstance ?: return "Firestore not available"
+        
+        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val startOfTodayMillis = try {
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(todayStr)?.time ?: System.currentTimeMillis()
+        } catch (e: Exception) {
+            System.currentTimeMillis()
+        }
+        
+        try {
+            // 1. Sync Events
+            val eventsSnap = firestore.collection("events").get().awaitTask()
+            val eventsList = eventsSnap.documents.map { documentToEvent(it) }
+                .filter { it.date >= todayStr } // Filter: upcoming / present
+            appDao.clearEvents()
+            eventsList.forEach { appDao.insertEvent(it) }
+
+            // 2. Sync Notifications
+            val notificationsSnap = firestore.collection("notifications").get().awaitTask()
+            val notificationsList = notificationsSnap.documents.map { documentToNotification(it) }
+                .filter { it.timestamp >= startOfTodayMillis } // Filter: upcoming / present
+            appDao.clearNotifications()
+            notificationsList.forEach { appDao.insertNotification(it) }
+
+            // 3. Sync Outpasses
+            val outpassesSnap = firestore.collection("outpasses").get().awaitTask()
+            val outpassesList = outpassesSnap.documents.map { documentToOutpassRequest(it) }
+                .filter { 
+                    it.timestamp >= startOfTodayMillis || 
+                    it.status.startsWith("PENDING") || 
+                    it.dateTime >= todayStr
+                }
+            appDao.clearOutpassRequests()
+            outpassesList.forEach { appDao.insertOutpassRequest(it) }
+
+            // 4. Sync Certificates
+            val certsSnap = firestore.collection("certificates").get().awaitTask()
+            val certsList = certsSnap.documents.map { documentToCertificateRequest(it) }
+                .filter { it.timestamp >= startOfTodayMillis || it.status == "PENDING" }
+            appDao.clearCertificateRequests()
+            certsList.forEach { appDao.insertCertificateRequest(it) }
+
+            // 5. Sync Canteen Bookings
+            val canteenSnap = firestore.collection("canteen_bookings").get().awaitTask()
+            val canteenList = canteenSnap.documents.map { documentToCanteenBooking(it) }
+                .filter { it.timestamp >= startOfTodayMillis || it.status != "COMPLETED" }
+            appDao.clearCanteenBookings()
+            canteenList.forEach { appDao.insertCanteenBooking(it) }
+
+            // 6. Sync Stationery Requests
+            val stationerySnap = firestore.collection("stationery_requests").get().awaitTask()
+            val stationeryList = stationerySnap.documents.map { documentToStationeryRequest(it) }
+                .filter { it.timestamp >= startOfTodayMillis || it.status != "COLLECTED" }
+            appDao.clearStationeryRequests()
+            stationeryList.forEach { appDao.insertStationeryRequest(it) }
+
+            // 7. Sync Print Requests
+            val printsSnap = firestore.collection("print_requests").get().awaitTask()
+            val printsList = printsSnap.documents.map { documentToPrintRequest(it) }
+                .filter { it.timestamp >= startOfTodayMillis || it.status != "COMPLETED" }
+            appDao.clearPrintRequests()
+            printsList.forEach { appDao.insertPrintRequest(it) }
+
+            // 8. Sync Chat Messages
+            val chatSnap = firestore.collection("chat_messages").get().awaitTask()
+            val chatList = chatSnap.documents.map { documentToChatMessage(it) }
+                .filter { it.timestamp >= (System.currentTimeMillis() - 24 * 60 * 60 * 1000) }
+            appDao.clearChatMessages()
+            chatList.forEach { appDao.insertChatMessage(it) }
+
+            return "SUCCESS"
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseSync", "Failed to pull/clean database cache: ${e.message}")
+            return "ERROR: ${e.message}"
+        }
     }
 
     // --- BULK FIRESTORE COMPREHENSIVE PUSH ---

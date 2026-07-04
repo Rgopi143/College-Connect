@@ -219,67 +219,6 @@ abstract class AppDatabase : RoomDatabase() {
                 CanteenItem(name = "Fresh Lime Soda", price = 20.0, category = "Beverages")
             )
             dao.insertCanteenItems(canteenList)
-
-            // Pre-populate initial Notifications
-            val notifications = listOf(
-                CollegeNotification(
-                    targetStudentId = "ALL",
-                    title = "Semester Exams Registration Open",
-                    content = "Please register for your upcoming semester examinations before next Friday. Ensure all pending library dues are cleared.",
-                    category = "General"
-                ),
-                CollegeNotification(
-                    targetStudentId = "ALL",
-                    title = "Smart India Hackathon 2026",
-                    content = "SIH Internal hackathon selection registrations are now active. Submit your innovative project proposals to Department Coordinators.",
-                    category = "General"
-                ),
-                CollegeNotification(
-                    targetStudentId = "23CS101",
-                    title = "Welcome to Campus Connect Portal",
-                    content = "Dear Alex, you can now seamlessly submit outpasses, book canteen meals, request certificates, and book stationery items online!",
-                    category = "General"
-                )
-            )
-
-            for (notif in notifications) {
-                dao.insertNotification(notif)
-            }
-
-            // Pre-populate initial College Events
-            val events = listOf(
-                CollegeEvent(
-                    title = "Annual Science & Tech Fest 2026",
-                    description = "A grand inter-college technical symposium featuring robotics, hackathons, and research exhibitions.",
-                    date = "2026-07-15",
-                    time = "09:00 AM",
-                    venue = "Main Auditorium & Block-A Seminars",
-                    organizerRole = "PRINCIPAL",
-                    filterDepartment = "ALL"
-                ),
-                CollegeEvent(
-                    title = "Graduation Day Ceremony",
-                    description = "Annual convocation ceremony for the graduating batch of 2026.",
-                    date = "2026-08-01",
-                    time = "10:30 AM",
-                    venue = "Open Air Theatre (OAT)",
-                    organizerRole = "ADMIN",
-                    filterDepartment = "ALL"
-                ),
-                CollegeEvent(
-                    title = "Campus Placement Prep Talk",
-                    description = "Special training session on cracking technical coding interviews and resume building.",
-                    date = "2026-06-25",
-                    time = "02:00 PM",
-                    venue = "Placement Cell Seminar Hall",
-                    organizerRole = "HOD",
-                    filterDepartment = "Computer Science"
-                )
-            )
-
-            for (evt in events) {
-                dao.insertEvent(evt)
-            }
         }
     }
 }

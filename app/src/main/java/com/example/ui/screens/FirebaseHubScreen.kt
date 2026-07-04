@@ -44,6 +44,7 @@ fun FirebaseHubScreen(
     val isConnected by viewModel.isFirebaseConnected.collectAsState()
     val testState by viewModel.firebaseTestState.collectAsState()
     val syncState by viewModel.firebaseSyncProgress.collectAsState()
+    val pullState by viewModel.firestorePullStatus.collectAsState()
 
     // Retrieve offline data counts easily from ViewModel StateFlow lists
     val usersList by viewModel.allUsers.collectAsState()
@@ -332,6 +333,95 @@ service cloud.firestore {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Fast Cloud Sync")
                         }
+                    }
+                }
+            }
+        }
+
+        // 3b. Cache memory cleaner & live pull
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DeleteSweep,
+                        contentDescription = null,
+                        tint = Color(0xFFE53935),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Text(
+                        text = "Clear Cache & Pull Live Data",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Text(
+                    text = "Remove all pre-populated local database caches and pull only the upcoming and present active data from Cloud Firestore. Historical records and expired requests are discarded to optimize memory.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                AnimatedVisibility(visible = pullState != "IDLE") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                when {
+                                    pullState.startsWith("SUCCESS") -> Color(0xFFE8F5E9)
+                                    pullState.startsWith("FAILED") -> Color(0xFFFFEBEE)
+                                    else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                }
+                            )
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = if (pullState == "SUCCESS") "Database cache cleaned. Fetch of live present data succeeded!" else pullState,
+                            fontSize = 12.sp,
+                            color = when {
+                                pullState.startsWith("SUCCESS") -> Color(0xFF1B5E20)
+                                pullState.startsWith("FAILED") -> Color(0xFFB71C1C)
+                                else -> MaterialTheme.colorScheme.onPrimaryContainer
+                            }
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.cleanCacheAndPullFirestore()
+                    },
+                    enabled = pullState != "SYNCING",
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("pull_live_present_button")
+                ) {
+                    if (pullState == "SYNCING") {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Clean Cache & Fetch Present Data")
                     }
                 }
             }

@@ -33,6 +33,7 @@ class PortalViewModel(
                 if (loggedInUser != null && !loggedInUser.isPaused) {
                     _currentUser.value = loggedInUser
                     setupRealtimeListeners(loggedInUser)
+                    cleanCacheAndPullFirestore()
                 }
             } catch (e: Exception) {
                 android.util.Log.e("PortalViewModel", "Auto-login failed: ${e.message}")
@@ -278,6 +279,7 @@ class PortalViewModel(
                 repository.updateUser(loggedUser)
                 _currentUser.value = loggedUser
                 setupRealtimeListeners(loggedUser)
+                cleanCacheAndPullFirestore()
                 
                 // Trigger onboarding welcome alert
                 repository.createNotification(
@@ -594,8 +596,29 @@ class PortalViewModel(
     private val _firebaseSyncProgress = MutableStateFlow<String>("IDLE")
     val firebaseSyncProgress: StateFlow<String> = _firebaseSyncProgress.asStateFlow()
 
+    private val _firestorePullStatus = MutableStateFlow<String>("IDLE")
+    val firestorePullStatus: StateFlow<String> = _firestorePullStatus.asStateFlow()
+
     fun resetFirebaseTestState() {
         _firebaseTestState.value = "IDLE"
+        _firestorePullStatus.value = "IDLE"
+    }
+
+    fun cleanCacheAndPullFirestore() {
+        val user = _currentUser.value ?: return
+        viewModelScope.launch {
+            _firestorePullStatus.value = "SYNCING"
+            try {
+                val result = repository.pullFromFirestoreAndCleanCache(user.userId)
+                if (result == "SUCCESS") {
+                    _firestorePullStatus.value = "SUCCESS"
+                } else {
+                    _firestorePullStatus.value = "FAILED: $result"
+                }
+            } catch (e: Exception) {
+                _firestorePullStatus.value = "FAILED: ${e.localizedMessage}"
+            }
+        }
     }
 
     fun testFirebaseWrite() {
