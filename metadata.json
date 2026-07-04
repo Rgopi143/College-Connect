@@ -1,0 +1,6 @@
+{
+  "name": "Campus Connect",
+  "description": "Comprehensive college student service portal for outpass clearance, certificate applications, stationery, printing, and digital canteen tokens.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

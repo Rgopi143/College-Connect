@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "573110816238",
+    "project_id": "college-connect-ca560",
+    "storage_bucket": "college-connect-ca560.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:573110816238:android:940bc3adeac5cf7d0e12ff",
+        "android_client_info": {
+          "package_name": "com.aistudio.collegeservices.fquzxp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCt0pw6Y9Q1axhiBbZrREsvbuw4Axo9jvU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
