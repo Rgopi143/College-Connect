@@ -1,2 +1,2 @@
 
-campus commect
+campus connect
