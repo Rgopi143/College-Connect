@@ -447,13 +447,14 @@ fun LoginScreen(
                                             emailText.endsWith("@principal.com") -> "PRINCIPAL"
                                             emailText.endsWith("@ranbidge.com") -> "ADMIN"
                                             emailText.endsWith("@neccanteen.com") -> "CANTEEN"
-                                            emailText.endsWith("@necstationary.com") -> "STORE"
-                                            emailText.endsWith("@necsecurity.com") -> "SECURITY"
+                                            emailText.endsWith("@necstationary.in") -> "STORE"
+                                            emailText.endsWith("@necsecurity.in") -> "SECURITY"
+                                            emailText.endsWith("@pa.com") || emailText.endsWith("@necpa.com") -> "PA"
                                             else -> null
                                         }
 
                                         if (determinedRole == null) {
-                                            registrationError = "Invalid email extension! Use @nrtec.in for Student, @technoelite.com for Staff, @hod.com for HOD, @principal.com for Principal, @ranbidge.com for Admin, @neccanteen.com for Canteen, @necstationary.com for Stationary, or @necsecurity.com for Security."
+                                            registrationError = "Invalid email extension! Use @nrtec.in for Student, @technoelite.com for Staff, @hod.com for HOD, @principal.com for Principal, @ranbidge.com for Admin, @neccanteen.com for Canteen, @necstationary.in for Stationary, @necsecurity.in for Security, or @pa.com for PA."
                                         } else {
                                             viewModel.registerNewUser(
                                                 userId = idText,
@@ -462,11 +463,11 @@ fun LoginScreen(
                                                 dept = deptText,
                                                 email = emailText,
                                                 role = determinedRole,
-                                                password = passwordText
+                                                password = passwordText,
+                                                autoLogin = true
                                             )
                                             userIdInput = idText
                                             passwordInput = passwordText
-                                            viewModel.login(idText, passwordText)
                                             isRegisterMode = false
                                         }
                                     }

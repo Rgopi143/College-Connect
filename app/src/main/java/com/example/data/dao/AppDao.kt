@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface AppDao {
     // --- USER ---
-    @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
+    @Query("SELECT * FROM users WHERE LOWER(userId) = LOWER(:userId) LIMIT 1")
     suspend fun getUserById(userId: String): User?
 
-    @Query("SELECT * FROM users WHERE userId = :identifier OR email = :identifier LIMIT 1")
+    @Query("SELECT * FROM users WHERE LOWER(userId) = LOWER(:identifier) OR LOWER(email) = LOWER(:identifier) LIMIT 1")
     suspend fun getUserByIdOrEmail(identifier: String): User?
 
     @Query("SELECT * FROM users WHERE role = :role")

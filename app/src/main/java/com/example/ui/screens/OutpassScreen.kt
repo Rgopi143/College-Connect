@@ -186,7 +186,7 @@ fun OutpassScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if (req.status == "APPROVED") {
+                    if (req.status == "APPROVED" || req.status == "PENDING_SECURITY" || req.status == "EXITED") {
                         OutpassCountdownTimer(
                             timestamp = req.timestamp,
                             modifier = Modifier.padding(bottom = 12.dp)
@@ -245,8 +245,9 @@ fun OutpassScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceAround
                             ) {
-                                Text("Class Advisor: OK", fontSize = 9.sp, color = Color.DarkGray)
+                                Text("Mentor: OK", fontSize = 9.sp, color = Color.DarkGray)
                                 Text("HOD: OK", fontSize = 9.sp, color = Color.DarkGray)
+                                Text("Security: OK", fontSize = 9.sp, color = Color.DarkGray)
                             }
                         }
 
@@ -276,13 +277,17 @@ fun OutpassScreen(
                         ) {
                             Text("Workflow Timeline Progress", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                             
-                            TimelineStep("Step 1: Class Advisor Clearance", 
-                                approved = req.status != "PENDING_ADVISOR" && req.status != "REJECTED",
-                                pending = req.status == "PENDING_ADVISOR"
+                            TimelineStep("Step 1: Mentor Clearance", 
+                                approved = req.status != "PENDING_MENTOR" && req.status != "PENDING_ADVISOR" && req.status != "REJECTED",
+                                pending = req.status == "PENDING_MENTOR" || req.status == "PENDING_ADVISOR"
                             )
                             TimelineStep("Step 2: Department HOD Clearance", 
-                                approved = req.status == "APPROVED",
+                                approved = req.status != "PENDING_MENTOR" && req.status != "PENDING_ADVISOR" && req.status != "PENDING_HOD" && req.status != "REJECTED",
                                 pending = req.status == "PENDING_HOD"
+                            )
+                            TimelineStep("Step 3: Security Gate Clearance", 
+                                approved = req.status == "APPROVED",
+                                pending = req.status == "PENDING_SECURITY"
                             )
                         }
                     }

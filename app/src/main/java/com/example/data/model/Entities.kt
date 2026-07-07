@@ -12,7 +12,7 @@ data class User(
     val email: String,
     val phone: String,
     val parentContact: String,
-    val role: String, // STUDENT, CLASS_ADVISOR, HOD, PRINCIPAL, WARDEN, ADMIN
+    val role: String, // STUDENT, CLASS_ADVISOR, HOD, PRINCIPAL, WARDEN, ADMIN, PA
     val password: String = "pass",
     val isLoggedIn: Boolean = false,
     val isPaused: Boolean = false,
@@ -33,7 +33,7 @@ data class OutpassRequest(
     val reason: String,
     val expectedReturnTime: String,
     val parentContact: String,
-    val status: String, // PENDING_ADVISOR, PENDING_HOD, PENDING_WARDEN, APPROVED, REJECTED
+    val status: String, // PENDING_MENTOR, PENDING_HOD, PENDING_SECURITY, APPROVED, REJECTED
     val qrText: String,
     val timestamp: Long = System.currentTimeMillis()
 )
@@ -47,7 +47,7 @@ data class CertificateRequest(
     val department: String,
     val certificateType: String, // Bonafide Certificate, Study Certificate, Transfer Certificate, Conduct Certificate, Internship Letter, NOC, Fee Structure
     val details: String, // Purpose, academic year, etc.
-    val status: String, // PENDING, APPROVED, REJECTED
+    val status: String, // PENDING_HOD, PENDING_PRINCIPAL, PENDING_PA_PRINT, APPROVED, REJECTED
     val timestamp: Long = System.currentTimeMillis()
 )
 

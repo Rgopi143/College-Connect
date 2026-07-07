@@ -257,39 +257,54 @@ class PortalViewModel(
     fun login(userId: String, password: String) {
         viewModelScope.launch {
             _loginError.value = null
-            if (userId.trim().isBlank()) {
-                _loginError.value = "User ID/Email cannot be empty."
-                return@launch
-            }
-            if (password.trim().isBlank()) {
-                _loginError.value = "Password cannot be empty."
-                return@launch
-            }
-            val user = repository.getUser(userId.trim())
-            if (user != null) {
-                if (user.password != password) {
-                    _loginError.value = "Invalid password."
+            try {
+                if (userId.trim().isBlank()) {
+                    _loginError.value = "User ID/Email cannot be empty."
                     return@launch
                 }
-                if (user.isPaused) {
-                    _loginError.value = "Your account has been suspended/paused by Administration."
+                if (password.trim().isBlank()) {
+                    _loginError.value = "Password cannot be empty."
                     return@launch
                 }
-                val loggedUser = user.copy(isLoggedIn = true)
-                repository.updateUser(loggedUser)
-                _currentUser.value = loggedUser
-                setupRealtimeListeners(loggedUser)
-                cleanCacheAndPullFirestore()
-                
-                // Trigger onboarding welcome alert
-                repository.createNotification(
-                    studentId = loggedUser.userId,
-                    title = "Session Started",
-                    content = "Successfully logged in as ${loggedUser.name} (${loggedUser.role})",
-                    category = "General"
-                )
-            } else {
-                _loginError.value = "User not found! Try registering a new account."
+                val cleanPassword = password.trim()
+                var user = repository.getUser(userId.trim())
+                if (user == null) {
+                    val fetchedUser = repository.getUserFromFirestore(userId.trim())
+                    if (fetchedUser != null) {
+                        android.util.Log.d("LoginDebug", "Fetched user from Firestore: ${fetchedUser.userId}, dbPassword='${fetchedUser.password}', inputPassword='$cleanPassword'")
+                        repository.insertUser(fetchedUser)
+                        user = fetchedUser
+                    }
+                }
+                if (user != null) {
+                    android.util.Log.d("LoginDebug", "User from local DB: ${user.userId}, dbPassword='${user.password}', inputPassword='$cleanPassword'")
+                    if (user.password != cleanPassword) {
+                        _loginError.value = "Invalid password."
+                        return@launch
+                    }
+                    if (user.isPaused) {
+                        _loginError.value = "Your account has been suspended/paused by Administration."
+                        return@launch
+                    }
+                    val loggedUser = user.copy(isLoggedIn = true)
+                    repository.updateUser(loggedUser)
+                    _currentUser.value = loggedUser
+                    setupRealtimeListeners(loggedUser)
+                    cleanCacheAndPullFirestore()
+                    
+                    // Trigger onboarding welcome alert
+                    repository.createNotification(
+                        studentId = loggedUser.userId,
+                        title = "Session Started",
+                        content = "Successfully logged in as ${loggedUser.name} (${loggedUser.role})",
+                        category = "General"
+                    )
+                } else {
+                    _loginError.value = "User not found! Try registering a new account."
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PortalViewModel", "Login error: ${e.message}", e)
+                _loginError.value = "Login failed: ${e.localizedMessage}"
             }
         }
     }
@@ -336,8 +351,17 @@ class PortalViewModel(
         registerNewUser(userId, name, roll, dept, "${userId.lowercase()}@nrtec.in", "STUDENT", "pass")
     }
 
-    fun registerNewUser(userId: String, name: String, roll: String, dept: String, email: String, role: String, password: String) {
+    fun registerNewUser(userId: String, name: String, roll: String, dept: String, email: String, role: String, password: String, autoLogin: Boolean = false) {
         viewModelScope.launch {
+            _loginError.value = null
+            var existing = repository.getUser(userId.trim()) ?: repository.getUser(email.trim())
+            if (existing == null) {
+                existing = repository.getUserFromFirestore(userId.trim()) ?: repository.getUserFromFirestore(email.trim())
+            }
+            if (existing != null) {
+                _loginError.value = "Registration failed: User ID or Email already exists."
+                return@launch
+            }
             val user = User(
                 userId = userId.trim(),
                 name = name.trim(),
@@ -352,6 +376,9 @@ class PortalViewModel(
                 isPaused = false
             )
             repository.insertUser(user)
+            if (autoLogin) {
+                login(userId.trim(), password)
+            }
         }
     }
 

@@ -1737,9 +1737,12 @@ fun QuickTile(
 }
 
 fun formatStatus(status: String): String {
-    return status.replace("PENDING_ADVISOR", "Pending Class Advisor")
+    return status.replace("PENDING_MENTOR", "Pending Mentor Clearance")
+        .replace("PENDING_ADVISOR", "Pending Mentor Clearance")
         .replace("PENDING_HOD", "Pending HOD Approval")
+        .replace("PENDING_SECURITY", "Pending Security Gate Check")
         .replace("PENDING_WARDEN", "Pending Principal/Warden")
+        .replace("PENDING_PA_PRINT", "Awaiting PA Printing")
         .replace("APPROVED", "Approved")
         .replace("REJECTED", "Rejected")
 }
@@ -2436,8 +2439,9 @@ fun StudentOutpassHubCard(
                                     ) {
                                         Text(
                                             text = when (req.status) {
-                                                "PENDING_ADVISOR" -> "Awaiting Advisor"
+                                                "PENDING_MENTOR", "PENDING_ADVISOR" -> "Awaiting Mentor"
                                                 "PENDING_HOD" -> "Awaiting HOD"
+                                                "PENDING_SECURITY" -> "Awaiting Security"
                                                 "APPROVED" -> "Approved - Ready"
                                                 "EXITED" -> "Exited"
                                                 else -> req.status
@@ -2462,7 +2466,7 @@ fun StudentOutpassHubCard(
                                         Text("Parent Contact: ${req.parentContact}", fontSize = 11.sp)
                                         Text("Submitted: ${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(req.timestamp))}", fontSize = 10.sp, color = Color.Gray)
                                         
-                                        if (req.status == "APPROVED" || req.status == "EXITED") {
+                                        if (req.status == "APPROVED" || req.status == "EXITED" || req.status == "PENDING_SECURITY") {
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Button(
                                                 onClick = { onNavigate("OUTPASS") },
@@ -2623,9 +2627,9 @@ fun StudentOutpassHubCard(
 @Composable
 fun OutpassTimeline(status: String) {
     val stepSubmitted = true
-    val stepAdvisor = status != "PENDING_ADVISOR" && status != "PENDING"
-    val stepHod = status == "APPROVED" || status == "EXITED"
-    val stepExit = status == "EXITED"
+    val stepMentor = status != "PENDING_MENTOR" && status != "PENDING_ADVISOR" && status != "PENDING" && status != "REJECTED"
+    val stepHod = stepMentor && status != "PENDING_HOD" && status != "REJECTED"
+    val stepSecurity = status == "APPROVED" || status == "EXITED"
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -2633,12 +2637,12 @@ fun OutpassTimeline(status: String) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         TimelineStep(label = "Submitted", checked = stepSubmitted, current = false)
-        TimelineConnector(checked = stepAdvisor)
-        TimelineStep(label = "Advisor", checked = stepAdvisor, current = status == "PENDING_ADVISOR")
+        TimelineConnector(checked = stepMentor)
+        TimelineStep(label = "Mentor", checked = stepMentor, current = status == "PENDING_MENTOR" || status == "PENDING_ADVISOR")
         TimelineConnector(checked = stepHod)
-        TimelineStep(label = "HOD", checked = stepHod, current = status == "PENDING_HOD" || status == "PENDING_WARDEN")
-        TimelineConnector(checked = stepExit)
-        TimelineStep(label = "Exit Gate", checked = stepExit, current = status == "APPROVED")
+        TimelineStep(label = "HOD", checked = stepHod, current = status == "PENDING_HOD")
+        TimelineConnector(checked = stepSecurity)
+        TimelineStep(label = "Security", checked = stepSecurity, current = status == "PENDING_SECURITY")
     }
 }
 

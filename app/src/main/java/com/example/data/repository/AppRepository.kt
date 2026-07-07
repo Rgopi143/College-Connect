@@ -105,7 +105,7 @@ class AppRepository(private val appDao: AppDao) {
             reason = reason,
             expectedReturnTime = expectedReturnTime,
             parentContact = parentContact,
-            status = "PENDING_ADVISOR", // Init status
+            status = "PENDING_MENTOR", // Init status goes to Mentor first
             qrText = uniqueText
         )
         appDao.insertOutpassRequest(request)
@@ -115,8 +115,15 @@ class AppRepository(private val appDao: AppDao) {
         createNotification(
             studentId,
             "Outpass Request Submitted",
-            "Your outpass request to leave campus on $dateTime in CS dept has been submitted. Status: Pending Advisor approval.",
+            "Your outpass request to leave campus on $dateTime has been submitted. Status: Pending Mentor approval.",
             "Outpass"
+        )
+        // Notify the Mentor
+        createNotification(
+            studentId = "mentor",
+            title = "Outpass Clearance Pending",
+            content = "Student $studentName ($rollNumber) has requested outpass clearance. Awaiting your approval.",
+            category = "Outpass"
         )
         return request
     }
@@ -124,25 +131,39 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun approveOutpass(request: OutpassRequest, approverRole: String) {
         val nextStatus = when (approverRole) {
             "CLASS_ADVISOR", "MENTOR" -> "PENDING_HOD"
-            "HOD", "WARDEN", "PRINCIPAL" -> "APPROVED"
+            "HOD" -> "PENDING_SECURITY"
+            "SECURITY" -> "APPROVED"
+            "WARDEN", "ADMIN" -> "APPROVED"
             else -> request.status
         }
-        val updatedRequest = if (nextStatus == "APPROVED") {
-            request.copy(status = nextStatus, timestamp = System.currentTimeMillis())
-        } else {
-            request.copy(status = nextStatus)
-        }
+        val updatedRequest = request.copy(status = nextStatus)
         appDao.updateOutpassRequest(updatedRequest)
         syncToFirestore("outpasses", "${updatedRequest.studentId}_${updatedRequest.timestamp}", updatedRequest)
 
         // Notification corresponding to the transition
-        val currentLabel = when (approverRole) {
-            "CLASS_ADVISOR", "MENTOR" -> "Mentor/Class Advisor approved your outpass. Now status: Pending HOD."
-            "HOD" -> "HOD APPROVED your outpass! QR Code Gate Pass is generated."
-            "WARDEN", "PRINCIPAL" -> "Warden/Principal APPROVED your outpass! QR Code Gate Pass is generated."
+        val currentLabel = when (nextStatus) {
+            "PENDING_HOD" -> "Mentor approved your outpass. Now status: Pending HOD."
+            "PENDING_SECURITY" -> "HOD approved your outpass. Now status: Pending Security Gate Check."
+            "APPROVED" -> "Your outpass request has been fully APPROVED by security/administration!"
             else -> "Updated status: $nextStatus"
         }
         createNotification(request.studentId, "Outpass Status Update", currentLabel, "Outpass")
+
+        // Notify the next actor in the workflow
+        when (nextStatus) {
+            "PENDING_HOD" -> createNotification(
+                studentId = "hod",
+                title = "Outpass Approval Pending",
+                content = "Outpass request for ${request.studentName} is cleared by Mentor. Awaiting HOD approval.",
+                category = "Outpass"
+            )
+            "PENDING_SECURITY" -> createNotification(
+                studentId = "security",
+                title = "Gate Outpass Clearance Pending",
+                content = "Outpass request for ${request.studentName} has been approved by HOD. Verify exit at gate.",
+                category = "Outpass"
+            )
+        }
     }
 
     suspend fun rejectOutpass(request: OutpassRequest, approverRole: String, comments: String = "Rejected by $approverRole") {
@@ -173,14 +194,21 @@ class AppRepository(private val appDao: AppDao) {
             department = department,
             certificateType = certificateType,
             details = details,
-            status = "PENDING_MENTOR"
+            status = "PENDING_HOD" // Initiates at HOD level directly
         )
         appDao.insertCertificateRequest(request)
         syncToFirestore("certificates", "${request.studentId}_${request.timestamp}", request)
         createNotification(
             studentId = studentId,
             title = "Certificate Request Raised",
-            content = "Requested: $certificateType. Track status in Certificate Services.",
+            content = "Requested: $certificateType. Sent to HOD for approval.",
+            category = "Certificate"
+        )
+        // Notify HOD
+        createNotification(
+            studentId = "hod",
+            title = "Certificate Approval Pending",
+            content = "Student $studentName ($rollNumber) has requested $certificateType. Awaiting your approval.",
             category = "Certificate"
         )
         return request
@@ -189,32 +217,46 @@ class AppRepository(private val appDao: AppDao) {
     suspend fun approveCertificate(request: CertificateRequest, approverRole: String) {
         val nextStatus = when (approverRole) {
             "CLASS_ADVISOR", "MENTOR" -> "PENDING_HOD"
-            "HOD" -> "PENDING_PRINCIPAL" // Flow from mentor -> hod -> principal for certificate requests
-            "PRINCIPAL" -> "APPROVED"
+            "HOD" -> "PENDING_PRINCIPAL"
+            "PRINCIPAL" -> "PENDING_PA_PRINT"
+            "PA" -> "APPROVED"
             "ADMIN" -> "APPROVED"
             else -> request.status
         }
-        val updated = if (nextStatus == "APPROVED") {
-            request.copy(status = nextStatus, timestamp = System.currentTimeMillis())
-        } else {
-            request.copy(status = nextStatus)
-        }
+        val updated = request.copy(status = nextStatus)
         appDao.updateCertificateRequest(updated)
         syncToFirestore("certificates", "${updated.studentId}_${updated.timestamp}", updated)
         
         val contentText = when (nextStatus) {
-            "PENDING_HOD" -> "Your request has been forwarded by Mentor. Awaiting HOD approval."
+            "PENDING_HOD" -> "Your request is submitted. Awaiting HOD approval."
             "PENDING_PRINCIPAL" -> "Your request has been forwarded by HOD. Now awaiting final sanction from Principal."
-            "APPROVED" -> "Your ${request.certificateType} request has been fully APPROVED by the Principal!"
+            "PENDING_PA_PRINT" -> "Your request has been approved by the Principal. Now forwarding to PA for printing."
+            "APPROVED" -> "Your ${request.certificateType} request has been printed and is ready for collection!"
             else -> "Updated status: $nextStatus"
         }
         
         createNotification(
             studentId = request.studentId,
-            title = "Certificate Request Forwarded",
+            title = "Certificate Status Update",
             content = contentText,
             category = "Certificate"
         )
+
+        // Notify the next actor in the workflow
+        when (nextStatus) {
+            "PENDING_PRINCIPAL" -> createNotification(
+                studentId = "principal",
+                title = "Certificate Sanction Pending",
+                content = "Certificate request (${request.certificateType}) for ${request.studentName} is forwarded by HOD. Awaiting Principal sanction.",
+                category = "Certificate"
+            )
+            "PENDING_PA_PRINT" -> createNotification(
+                studentId = "pa",
+                title = "Certificate Printing Pending",
+                content = "Certificate request (${request.certificateType}) for ${request.studentName} has been sanctioned by Principal. Please print.",
+                category = "Certificate"
+            )
+        }
     }
 
     suspend fun rejectCertificate(request: CertificateRequest, approverRole: String) {
@@ -437,7 +479,7 @@ class AppRepository(private val appDao: AppDao) {
 
     // --- SECURITY DOOR HISTORY & CHAT INTEGRATION ---
     suspend fun verifyOutpassExit(request: OutpassRequest) {
-        val updatedRequest = request.copy(status = "EXITED")
+        val updatedRequest = request.copy(status = "APPROVED")
         appDao.updateOutpassRequest(updatedRequest)
         syncToFirestore("outpasses", "${updatedRequest.studentId}_${updatedRequest.timestamp}", updatedRequest)
         createNotification(request.studentId, "Outpass Exit Verified", "Your exit gate-pass has been successfully verified by security.", "Outpass")
@@ -606,20 +648,25 @@ class AppRepository(private val appDao: AppDao) {
             notificationsList.forEach { appDao.insertNotification(it) }
 
             // 3. Sync Outpasses
-            val outpassesSnap = firestore.collection("outpasses").get().awaitTask()
-            val outpassesList = outpassesSnap.documents.map { documentToOutpassRequest(it) }
-                .filter { 
-                    it.timestamp >= startOfTodayMillis || 
-                    it.status.startsWith("PENDING") || 
-                    it.dateTime >= todayStr
-                }
-            appDao.clearOutpassRequests()
-            outpassesList.forEach { appDao.insertOutpassRequest(it) }
+            val user = appDao.getUserById(currentUserId)
+            if (user?.role == "PRINCIPAL") {
+                appDao.clearOutpassRequests()
+            } else {
+                val outpassesSnap = firestore.collection("outpasses").get().awaitTask()
+                val outpassesList = outpassesSnap.documents.map { documentToOutpassRequest(it) }
+                    .filter { 
+                        it.timestamp >= startOfTodayMillis || 
+                        it.status.startsWith("PENDING") || 
+                        it.dateTime >= todayStr
+                    }
+                appDao.clearOutpassRequests()
+                outpassesList.forEach { appDao.insertOutpassRequest(it) }
+            }
 
             // 4. Sync Certificates
             val certsSnap = firestore.collection("certificates").get().awaitTask()
             val certsList = certsSnap.documents.map { documentToCertificateRequest(it) }
-                .filter { it.timestamp >= startOfTodayMillis || it.status == "PENDING" }
+                .filter { it.timestamp >= startOfTodayMillis || it.status.startsWith("PENDING") }
             appDao.clearCertificateRequests()
             certsList.forEach { appDao.insertCertificateRequest(it) }
 
@@ -656,6 +703,49 @@ class AppRepository(private val appDao: AppDao) {
             android.util.Log.e("FirebaseSync", "Failed to pull/clean database cache: ${e.message}")
             return "ERROR: ${e.message}"
         }
+    }
+
+    private fun documentToUser(doc: com.google.firebase.firestore.DocumentSnapshot): User {
+        return User(
+            userId = doc.getString("userId") ?: "",
+            name = doc.getString("name") ?: "",
+            rollNumber = doc.getString("rollNumber") ?: "",
+            department = doc.getString("department") ?: "",
+            email = doc.getString("email") ?: "",
+            phone = doc.getString("phone") ?: "",
+            parentContact = doc.getString("parentContact") ?: "",
+            role = doc.getString("role") ?: "STUDENT",
+            password = doc.getString("password") ?: "pass",
+            isLoggedIn = doc.getBoolean("isLoggedIn") ?: false,
+            isPaused = doc.getBoolean("isPaused") ?: false,
+            assignedMentorId = doc.getString("assignedMentorId"),
+            assignedMentorName = doc.getString("assignedMentorName"),
+            assignedAdvisorId = doc.getString("assignedAdvisorId"),
+            assignedAdvisorName = doc.getString("assignedAdvisorName")
+        )
+    }
+
+    suspend fun getUserFromFirestore(userIdOrEmail: String): User? = kotlinx.coroutines.withTimeoutOrNull(3000) {
+        val firestore = firestoreInstance ?: return@withTimeoutOrNull null
+        try {
+            // 1. Try to get document by userId
+            val docSnap = firestore.collection("users").document(userIdOrEmail).get().awaitTask()
+            if (docSnap.exists()) {
+                return@withTimeoutOrNull documentToUser(docSnap)
+            }
+            // 2. Try to query by email
+            val querySnap = firestore.collection("users")
+                .whereEqualTo("email", userIdOrEmail)
+                .limit(1)
+                .get()
+                .awaitTask()
+            if (!querySnap.isEmpty) {
+                return@withTimeoutOrNull documentToUser(querySnap.documents[0])
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseSync", "Failed to fetch user from firestore: ${e.message}")
+        }
+        null
     }
 
     // --- BULK FIRESTORE COMPREHENSIVE PUSH ---

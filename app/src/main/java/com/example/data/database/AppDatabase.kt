@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
         ChatMessage::class,
         CollegeEvent::class
     ],
-    version = 5,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -56,6 +56,15 @@ abstract class AppDatabase : RoomDatabase() {
     ) : RoomDatabase.Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
+            INSTANCE?.let { database ->
+                scope.launch(Dispatchers.IO) {
+                    populateDatabase(database.appDao())
+                }
+            }
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
             INSTANCE?.let { database ->
                 scope.launch(Dispatchers.IO) {
                     populateDatabase(database.appDao())
@@ -147,11 +156,21 @@ abstract class AppDatabase : RoomDatabase() {
                     role = "PRINCIPAL"
                 ),
                 User(
+                    userId = "pa",
+                    name = "Mrs. Sarah Connor (Personal Assistant)",
+                    rollNumber = "STAFF_PA",
+                    department = "Administration Office",
+                    email = "pa@pa.com",
+                    phone = "+91 9441234585",
+                    parentContact = "N/A",
+                    role = "PA"
+                ),
+                User(
                     userId = "canteen",
                     name = "Chef Ram (Canteen Manager)",
                     rollNumber = "STAFF_CANTEEN",
                     department = "Campus Dining",
-                    email = "canteen@college.edu",
+                    email = "canteen@neccanteen.com",
                     phone = "+91 9441234579",
                     parentContact = "N/A",
                     role = "CANTEEN"
@@ -161,7 +180,7 @@ abstract class AppDatabase : RoomDatabase() {
                     name = "Mr. Rajan (Academic Store Clerk)",
                     rollNumber = "STAFF_STORE",
                     department = "Stationery Store",
-                    email = "store@college.edu",
+                    email = "store@necstationary.in",
                     phone = "+91 9441234580",
                     parentContact = "N/A",
                     role = "STORE"
@@ -171,7 +190,7 @@ abstract class AppDatabase : RoomDatabase() {
                     name = "Officer Bahadur (Gate Security)",
                     rollNumber = "STAFF_SECURITY",
                     department = "Campus Security Desk",
-                    email = "security@college.edu",
+                    email = "security@necsecurity.in",
                     phone = "+91 9441234581",
                     parentContact = "N/A",
                     role = "SECURITY"
@@ -181,7 +200,7 @@ abstract class AppDatabase : RoomDatabase() {
                     name = "Campus Portal Administrator",
                     rollNumber = "ADMIN_CS",
                     department = "IT Services",
-                    email = "admin@college.edu",
+                    email = "admin@ranbidge.com",
                     phone = "+91 9441234572",
                     parentContact = "N/A",
                     role = "ADMIN"
@@ -189,7 +208,9 @@ abstract class AppDatabase : RoomDatabase() {
             )
 
             for (user in users) {
-                dao.insertUser(user)
+                if (dao.getUserById(user.userId) == null) {
+                    dao.insertUser(user)
+                }
             }
 
             // Pre-populate Stationery Items

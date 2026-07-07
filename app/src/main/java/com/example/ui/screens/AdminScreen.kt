@@ -63,6 +63,7 @@ fun AdminScreen(
             "HOD" -> "Allocations"
             "PRINCIPAL" -> "Allocations"
             "MENTOR", "CLASS_ADVISOR" -> "Outpasses"
+            "PA" -> "Certificates"
             else -> "Outpasses"
         }
     }
@@ -74,7 +75,8 @@ fun AdminScreen(
             "SECURITY" -> listOf("Outpasses", "History Logs", "Message Chat")
             "HOD" -> listOf("Allocations", "Outpasses", "Certificates", "History", "Message Chat", "Analytics")
             "MENTOR", "CLASS_ADVISOR" -> listOf("Outpasses", "Certificates", "History", "Analytics")
-            "PRINCIPAL" -> listOf("Allocations", "Outpasses", "Certificates", "History", "Manage Employees", "Message Chat", "Analytics")
+            "PRINCIPAL" -> listOf("Allocations", "Certificates", "History", "Manage Employees", "Message Chat", "Analytics")
+            "PA" -> listOf("Certificates", "History")
             "ADMIN" -> listOf("Allocations", "Manage Employees", "Outpasses", "Certificates", "History", "Stationery", "Print Center", "Canteen", "Message Chat", "Analytics")
             else -> listOf("Outpasses")
         }
@@ -1111,7 +1113,7 @@ fun AdminScreen(
                                     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp)
                                 )
 
-                                val roles = listOf("All", "PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN")
+                                val roles = listOf("All", "PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN", "PA")
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -1311,7 +1313,7 @@ fun AdminScreen(
                         var roleVal by remember { mutableStateOf("HOD") }
                         var inputError by remember { mutableStateOf<String?>(null) }
 
-                        val roleOptions = listOf("PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN")
+                        val roleOptions = listOf("PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN", "PA")
 
                         AlertDialog(
                             onDismissRequest = { showAddEmployeeDialog = false },
@@ -1443,7 +1445,7 @@ fun AdminScreen(
                         var roleVal by remember { mutableStateOf(emp.role) }
                         var inputError by remember { mutableStateOf<String?>(null) }
 
-                        val roleOptions = listOf("PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN")
+                        val roleOptions = listOf("PRINCIPAL", "HOD", "WARDEN", "MENTOR", "CLASS_ADVISOR", "CANTEEN", "STORE", "SECURITY", "ADMIN", "PA")
 
                         AlertDialog(
                             onDismissRequest = { 
@@ -1571,16 +1573,10 @@ fun AdminScreen(
 
                 "Outpasses" -> {
                     val actionableOutpasses = outpasses.filter {
-                        // Class Advisor / Mentor clears PENDING_ADVISOR
-                        // HOD clears PENDING_HOD
-                        // Warden / Principal clears PENDING_WARDEN
-                        // Security views APPROVED outpasses ready for gate check
-                        ((staffUser?.role == "CLASS_ADVISOR" || staffUser?.role == "MENTOR") && it.status == "PENDING_ADVISOR") ||
+                        ((staffUser?.role == "MENTOR" || staffUser?.role == "CLASS_ADVISOR") && (it.status == "PENDING_MENTOR" || it.status == "PENDING_ADVISOR")) ||
                         (staffUser?.role == "HOD" && it.status == "PENDING_HOD") ||
-                        (staffUser?.role == "WARDEN" && it.status == "PENDING_WARDEN") ||
-                        (staffUser?.role == "PRINCIPAL" && (it.status == "PENDING_WARDEN" || it.status == "PENDING_ADVISOR" || it.status == "PENDING_HOD")) ||
-                        (staffUser?.role == "ADMIN") ||
-                        (staffUser?.role == "SECURITY" && it.status == "APPROVED")
+                        (staffUser?.role == "SECURITY" && it.status == "PENDING_SECURITY") ||
+                        (staffUser?.role == "ADMIN")
                     }
 
                     var outpassSearchQuery by remember { mutableStateOf("") }
@@ -1723,6 +1719,7 @@ fun AdminScreen(
                         ((staffUser?.role == "CLASS_ADVISOR" || staffUser?.role == "MENTOR") && it.status == "PENDING_MENTOR") ||
                         (staffUser?.role == "HOD" && it.status == "PENDING_HOD") ||
                         (staffUser?.role == "PRINCIPAL" && it.status == "PENDING_PRINCIPAL") ||
+                        (staffUser?.role == "PA" && it.status == "PENDING_PA_PRINT") ||
                         (staffUser?.role == "ADMIN" && it.status.startsWith("PENDING"))
                     }
 
@@ -1790,6 +1787,7 @@ fun AdminScreen(
                                                         "PENDING_MENTOR" -> "Awaiting Mentor"
                                                         "PENDING_HOD" -> "Awaiting HOD"
                                                         "PENDING_PRINCIPAL" -> "Awaiting Principal"
+                                                        "PENDING_PA_PRINT" -> "Awaiting PA Printing"
                                                         else -> cert.status
                                                     }
                                                     Text(stageLabel, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
@@ -1807,7 +1805,8 @@ fun AdminScreen(
                                                 val actionText = when (staffUser?.role) {
                                                     "CLASS_ADVISOR", "MENTOR" -> "Forward to HOD"
                                                     "HOD" -> "Forward to Principal"
-                                                    "PRINCIPAL" -> "Approve & Sanction"
+                                                    "PRINCIPAL" -> "Forward to PA to Print"
+                                                    "PA" -> "Print Certificate"
                                                     else -> "Approve"
                                                 }
                                                 Button(
@@ -1816,7 +1815,8 @@ fun AdminScreen(
                                                         val msg = when (staffUser?.role) {
                                                             "CLASS_ADVISOR", "MENTOR" -> "Forwarded to HOD successfully!"
                                                             "HOD" -> "Forwarded to Principal successfully!"
-                                                            "PRINCIPAL" -> "Certificate approved and signed successfully!"
+                                                            "PRINCIPAL" -> "Forwarded to PA for printing!"
+                                                            "PA" -> "Certificate printed successfully!"
                                                             else -> "Certificate request approved!"
                                                         }
                                                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -1845,7 +1845,7 @@ fun AdminScreen(
                 }
 
                 "History" -> {
-                    val historyOutpasses = outpasses.filter { it.status != "PENDING_ADVISOR" && it.status != "PENDING" }
+                    val historyOutpasses = if (staffUser?.role == "PRINCIPAL") emptyList() else outpasses.filter { it.status != "PENDING_ADVISOR" && it.status != "PENDING" }
                     val historyCerts = certificates.filter { it.status != "PENDING_MENTOR" && it.status != "PENDING" }
                     
                     val combinedHistory = (historyOutpasses.map { "Outpass" to it } + historyCerts.map { "Certificate" to it })
@@ -1987,6 +1987,7 @@ fun AdminScreen(
                                                         "PENDING_MENTOR" -> "Awaiting Mentor"
                                                         "PENDING_HOD" -> "Awaiting HOD"
                                                         "PENDING_PRINCIPAL" -> "Awaiting Principal"
+                                                        "PENDING_PA_PRINT" -> "Awaiting PA Printing"
                                                         else -> req.status
                                                     }
                                                     else -> ""
@@ -2733,8 +2734,8 @@ fun AdminScreen(
                     // Revenue calculator & request trackers display metrics
                     val totalPrintRev = printRequests.sumOf { it.totalCost }
                     val totalCanteenRev = canteenBookings.sumOf { it.totalCost }
-                    val totalOutpassCount = outpasses.size
-                    val totalApprovedOutpass = outpasses.count { it.status == "APPROVED" }
+                    val totalOutpassCount = if (staffUser?.role == "PRINCIPAL") 0 else outpasses.size
+                    val totalApprovedOutpass = if (staffUser?.role == "PRINCIPAL") 0 else outpasses.count { it.status == "APPROVED" }
                     val certApprovedCount = certificates.count { it.status == "APPROVED" }
                     val totalPreordersCount = stationeryRequests.size
 
@@ -2799,17 +2800,17 @@ fun AdminScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
 
                                     // Let's compute the slice counts dynamically
-                                    val pendingCount = outpasses.count { it.status.startsWith("PENDING_") } + 
+                                    val pendingCount = (if (staffUser?.role == "PRINCIPAL") 0 else outpasses.count { it.status.startsWith("PENDING_") }) + 
                                             certificates.count { it.status.startsWith("PENDING") } + 
                                             stationeryRequests.count { it.status == "PENDING" } + 
                                             printRequests.count { it.status == "QUEUED" || it.status == "PRINTING" }
 
-                                    val acceptedCount = outpasses.count { it.status == "APPROVED" } + 
+                                    val acceptedCount = (if (staffUser?.role == "PRINCIPAL") 0 else outpasses.count { it.status == "APPROVED" }) + 
                                             certificates.count { it.status == "APPROVED" || it.status == "ISSUED" } + 
                                             stationeryRequests.count { it.status == "READY_FOR_COLLECTION" || it.status == "COLLECTED" } + 
                                             printRequests.count { it.status == "READY" || it.status == "COMPLETED" }
 
-                                    val deniedCount = outpasses.count { it.status == "REJECTED" } + 
+                                    val deniedCount = (if (staffUser?.role == "PRINCIPAL") 0 else outpasses.count { it.status == "REJECTED" }) + 
                                             certificates.count { it.status == "REJECTED" } + 
                                             stationeryRequests.count { it.status == "REJECTED" } + 
                                             printRequests.count { it.status == "REJECTED" }
