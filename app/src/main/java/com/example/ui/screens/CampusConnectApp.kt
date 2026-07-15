@@ -37,21 +37,26 @@ fun CampusConnectApp(
     val currUser by viewModel.currentUser.collectAsState()
 
     val allNotif by viewModel.notifications.collectAsState()
-    var shownNotifIds by remember { mutableStateOf<Set<Int>?>(null) }
+    var shownNotifIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var activeHeadsUpNotif by remember { mutableStateOf<CollegeNotification?>(null) }
+    var loginTime by remember { mutableStateOf(0L) }
 
-    LaunchedEffect(allNotif) {
-        if (shownNotifIds == null) {
-            shownNotifIds = allNotif.map { it.id }.toSet()
-        } else {
-            val currentIds = shownNotifIds ?: emptySet()
-            val newUnread = allNotif.filter { it.id !in currentIds && !it.isRead }
+    LaunchedEffect(allNotif, loginTime) {
+        if (currUser != null && loginTime > 0L) {
+            val newUnread = allNotif.filter {
+                it.id !in shownNotifIds &&
+                !it.isRead &&
+                it.timestamp >= (loginTime - 2000L) &&
+                it.category == "Certificate"
+            }
             if (newUnread.isNotEmpty()) {
                 val newest = newUnread.maxByOrNull { it.timestamp }
                 if (newest != null) {
                     activeHeadsUpNotif = newest
-                    shownNotifIds = currentIds + allNotif.map { it.id }.toSet()
+                    shownNotifIds = shownNotifIds + allNotif.map { it.id }.toSet()
                 }
+            } else {
+                shownNotifIds = shownNotifIds + allNotif.map { it.id }.toSet()
             }
         }
     }
@@ -65,8 +70,11 @@ fun CampusConnectApp(
 
     LaunchedEffect(currUser) {
         if (currUser == null) {
-            shownNotifIds = null
+            shownNotifIds = emptySet()
             activeHeadsUpNotif = null
+            loginTime = 0L
+        } else {
+            loginTime = System.currentTimeMillis()
         }
     }
 

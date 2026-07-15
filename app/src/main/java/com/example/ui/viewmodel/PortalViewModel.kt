@@ -291,14 +291,6 @@ class PortalViewModel(
                     _currentUser.value = loggedUser
                     setupRealtimeListeners(loggedUser)
                     cleanCacheAndPullFirestore()
-                    
-                    // Trigger onboarding welcome alert
-                    repository.createNotification(
-                        studentId = loggedUser.userId,
-                        title = "Session Started",
-                        content = "Successfully logged in as ${loggedUser.name} (${loggedUser.role})",
-                        category = "General"
-                    )
                 } else {
                     _loginError.value = "User not found! Try registering a new account."
                 }
